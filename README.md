@@ -1,16 +1,16 @@
-# Fake News Detection - Huong dan test end-to-end
+# Fake News Detection - Huong dan chay lai tu dau den cuoi
 
-README nay uu tien de **chay thu tu dau den cuoi**:
+README nay viet lai de de hieu va de test, tap trung vao 3 phan:
 
-1. Tien xu ly van ban (`main.py`)
-2. Tao dac trung (`scripts/build_text_features.py`)
-3. Kiem tra output cua TF-IDF va FastText
+1. Tien xu ly va tao `input_ids`
+2. Bieu dien du lieu TF-IDF + FastText (tu `tokenized_text`)
+3. Train va so sanh LSTM vs BiLSTM 100 epoch (bat buoc dung `input_ids`)
 
 ## 1) Yeu cau
 
-- Python 3.10+ (khuyen nghi)
+- Python 3.10+
 - Windows PowerShell
-- Dang o root project `Fake-News-Detection`
+- Dang o root: `D:\ĐACN\Fake-News-Detection`
 
 ## 2) Cai dat
 
@@ -18,96 +18,126 @@ README nay uu tien de **chay thu tu dau den cuoi**:
 python -m pip install -r requirements.txt
 ```
 
-## 3) Chay smoke test nhanh
+## 3) Kiem tra nhanh pipeline
 
 ```powershell
 python scripts/smoke_test_preprocess.py
 python scripts/smoke_test_features.py
+python scripts/smoke_test_lstm.py
+python scripts/smoke_test_bilstm.py
 ```
 
-Neu ca hai lenh deu in `passed` thi pipeline co ban da on.
+Neu 4 lenh deu in `passed` thi code co ban dang chay duoc.
 
-## 4) Luong end-to-end (1 file, test nhanh)
+## 4) Luong du lieu trong project
 
-### Buoc A - Tien xu ly tu file goc
+### 4.1 Luong preprocess
 
-Input goc: `data/update_data/fix_test_data.csv` (co cot `Maintext`)
+Input goc: cot `Maintext`
 
-```powershell
-python main.py --input data/update_data/fix_test_data.csv --output data/update_data/fix_test_data_preprocessed_tmp.csv --text-col Maintext --output-col clean_text --normalized-col normalized_text --tokenized-col tokenized_text --sequence-col input_ids --max-length 64 --padding post --truncating post --abbreviation-csv data/vietnamese_abbreviation_normalization.csv
-```
+Output sau preprocess:
 
-Sau buoc nay, file `data/update_data/fix_test_data_preprocessed_tmp.csv` se co cac cot:
-
-- `Maintext` (goc)
 - `clean_text`
 - `normalized_text`
 - `tokenized_text`
 - `input_ids`
 
-### Buoc B - Tao TF-IDF + FastText tu `tokenized_text`
+Trong project hien tai:
 
-> Luu y: pipeline feature hien tai chi chap nhan cot `tokenized_text`.
+- TF-IDF va FastText dung `tokenized_text`
+- LSTM va BiLSTM dung `input_ids` (khong fallback ve cot khac)
+
+### 4.2 Luu y quan trong cho train deep learning
+
+`scripts/train_lstm_baseline.py` va `scripts/train_bilstm_phase2.py` da khoa theo input_ids-only:
+
+- Tat ca split train/val/test ban dua vao deu phai co cot `input_ids`
+- Neu thieu `input_ids`, script se bao loi va dung
+
+## 5) Tao file input_ids cho train/val de train cong bang
+
+Hai file goc sau thuong chua co `input_ids`:
+
+- `data/update_data/update_train_data.csv`
+- `data/update_data/update_val_data.csv`
+
+Lenh duoi day tao 2 file moi co `input_ids`, va dung chung vocabulary tu train cho val:
+
+```powershell
+python -u -c "from pathlib import Path; import pandas as pd; from src.data.load_data import clean_dataset; from src.features.build_features import build_vocabulary; train_in=Path('data/update_data/update_train_data.csv'); val_in=Path('data/update_data/update_val_data.csv'); train_out=Path('data/update_data/update_train_input_ids.csv'); val_out=Path('data/update_data/update_val_input_ids.csv'); train_df=pd.read_csv(train_in); val_df=pd.read_csv(val_in); train_clean=clean_dataset(train_df, text_col='Maintext', sequence_col='input_ids', tokenized_col='tokenized_text', normalized_col='normalized_text', output_col='clean_text', max_length=64, min_freq=1, abbreviation_csv='data/vietnamese_abbreviation_normalization.csv'); vocab=build_vocabulary(train_clean['tokenized_text'].fillna('').astype(str).tolist(), min_freq=1, max_vocab_size=None); val_clean=clean_dataset(val_df, text_col='Maintext', sequence_col='input_ids', tokenized_col='tokenized_text', normalized_col='normalized_text', output_col='clean_text', max_length=64, vocab=vocab, abbreviation_csv='data/vietnamese_abbreviation_normalization.csv'); train_out.parent.mkdir(parents=True, exist_ok=True); train_clean.to_csv(train_out, index=False, encoding='utf-8-sig'); val_clean.to_csv(val_out, index=False, encoding='utf-8-sig'); print('saved', train_out); print('saved', val_out)"
+```
+
+Sau khi chay, ban co 2 file de train:
+
+- `data/update_data/update_train_input_ids.csv`
+- `data/update_data/update_val_input_ids.csv`
+
+## 6) TF-IDF + FastText (phan bieu dien du lieu)
+
+Vi du nhanh tren file da preprocess:
 
 ```powershell
 python scripts/build_text_features.py --train-path data/update_data/fix_test_data_preprocessed_tmp.csv --tokenized-col tokenized_text --mode both --artifact-dir artifacts/features_fix_test_e2e --output-dir data/features_fix_test_e2e --tfidf-min-df 1 --tfidf-max-df 1.0 --ft-min-count 1
 ```
 
-## 5) Output sinh ra la gi?
+Output chinh:
 
-### 5.1 Thu muc artifacts (`artifacts/features_fix_test_e2e`)
+- `artifacts/features_fix_test_e2e/tfidf_vectorizer.joblib`
+- `artifacts/features_fix_test_e2e/fasttext.model`
+- `data/features_fix_test_e2e/X_train_tfidf.npz`
+- `data/features_fix_test_e2e/X_train_fasttext.npy`
+- `data/features_fix_test_e2e/feature_metadata.json`
 
-- `tfidf_vectorizer.joblib`: model TF-IDF da fit tren train
-- `fasttext.model`: model FastText da train
-- `fasttext.model.wv.vectors_ngrams.npy`: ma tran subword vectors cua FastText (thuong lon)
-
-### 5.2 Thu muc feature data (`data/features_fix_test_e2e`)
-
-- `X_train_tfidf.npz`: ma tran sparse TF-IDF, shape `(so_van_ban, so_dac_trung)`
-- `X_train_fasttext.npy`: ma tran dense FastText, shape `(so_van_ban, vector_size)`
-- `feature_metadata.json`: cau hinh lan chay (input, hyper-params, vocab size)
-
-## 6) Y nghia TF-IDF va FastText trong project
-
-- **TF-IDF**: bien moi van ban thanh vector sparse theo tan suat + do hiem cua tu/ngram.
-- **FastText**: hoc embedding tu, sau do pooling (mean/sum) thanh vector dense cho moi van ban.
-- Hai output nay la **dau vao cho model phan loai** o buoc train/predict.
-- Ban than buoc 2.4 khong tra nhan fake/real; no chi tra vector so.
-
-## 7) Kiem tra nhanh output bang Python
+## 7) Train LSTM 100 epoch (Phase 1)
 
 ```powershell
-python -c "import json, numpy as np; from scipy import sparse; md=json.load(open('data/features_fix_test_e2e/feature_metadata.json', encoding='utf-8')); X1=sparse.load_npz('data/features_fix_test_e2e/X_train_tfidf.npz'); X2=np.load('data/features_fix_test_e2e/X_train_fasttext.npy'); print(md['tokenized_col'], md['mode']); print('TFIDF', X1.shape, 'nnz=', X1.nnz); print('FASTTEXT', X2.shape, X2.dtype)"
+python scripts/train_lstm_baseline.py --train-path data/update_data/update_train_input_ids.csv --val-path data/update_data/update_val_input_ids.csv --output-dir artifacts/lstm_phase1_epoch100_inputids --epochs 100 --batch-size 32 --max-length 64 --embedding-dim 128 --hidden-size 128 --num-layers 1 --dropout 0.2 --learning-rate 1e-3 --seed 42
 ```
 
-## 8) Chay theo train/val/test (khi co san 3 file da preprocess)
+Output:
 
-Tat ca file dau vao phai co cot `tokenized_text`.
+- `artifacts/lstm_phase1_epoch100_inputids/lstm_baseline.pt`
+- `artifacts/lstm_phase1_epoch100_inputids/metrics.json`
+
+## 8) Train BiLSTM 100 epoch (Phase 2)
 
 ```powershell
-python scripts/build_text_features.py --train-path data/update_data/update_train_data_cleaned.csv --val-path data/update_data/update_val_data.csv --test-path data/update_data/fix_test_data_preprocessed_tmp.csv --tokenized-col tokenized_text --mode both --artifact-dir artifacts/features --output-dir data/features
+python scripts/train_bilstm_phase2.py --train-path data/update_data/update_train_input_ids.csv --val-path data/update_data/update_val_input_ids.csv --output-dir artifacts/bilstm_phase2_epoch100_inputids --epochs 100 --batch-size 32 --max-length 64 --embedding-dim 128 --hidden-size 128 --num-layers 1 --dropout 0.2 --learning-rate 1e-3 --seed 42
 ```
 
-Se sinh them:
+Output:
 
-- `X_val_tfidf.npz`, `X_test_tfidf.npz`
-- `X_val_fasttext.npy`, `X_test_fasttext.npy`
+- `artifacts/bilstm_phase2_epoch100_inputids/bilstm_phase2.pt`
+- `artifacts/bilstm_phase2_epoch100_inputids/metrics.json`
 
-## 9) Loi thuong gap
+## 9) So sanh LSTM va BiLSTM
 
-- `Missing required column 'tokenized_text'`: file dau vao chua qua buoc preprocess hoac sai cot.
-- File FastText qua lon: giam `--ft-min-count`, `--ft-vector-size` hoac huan luyen tren tap train gon hon.
-- Loi duong dan Windows: dung duong dan tu root project, tranh go sai ten thu muc.
+### 9.1 So sanh nhanh bang lenh 1 dong
 
-## 10) File chinh trong codebase
+```powershell
+python -u -c "import json; l=json.load(open('artifacts/lstm_phase1_epoch100_inputids/metrics.json',encoding='utf-8')); b=json.load(open('artifacts/bilstm_phase2_epoch100_inputids/metrics.json',encoding='utf-8')); lf=l['history'][-1]; bf=b['history'][-1]; lb=max(l['history'], key=lambda x: x.get('val_f1',-1)); bb=max(b['history'], key=lambda x: x.get('val_f1',-1)); print('FINAL LSTM  :', lf); print('FINAL BiLSTM:', bf); print('BEST LSTM   :', lb); print('BEST BiLSTM :', bb)"
+```
 
-- `main.py`: CLI tien xu ly CSV
-- `src/data/load_data.py`: pipeline xu ly theo dataset
-- `src/data/preprocess.py`: clean + normalize + tokenize
-- `src/features/build_features.py`: vocab + sequence + pad/truncate
-- `src/features/tfidf_features.py`: fit/transform TF-IDF
-- `src/features/fasttext_features.py`: train FastText + vector hoa van ban
-- `src/features/artifact_io.py`: save/load vectorizer, model, matrix
-- `scripts/build_text_features.py`: tao dac trung 2.4 tu `tokenized_text`
-- `scripts/smoke_test_preprocess.py`: smoke test preprocess
-- `scripts/smoke_test_features.py`: smoke test feature
+### 9.2 Hieu cho dung ket qua
+
+- `FINAL`: metric tai epoch 100
+- `BEST`: epoch co `val_f1` cao nhat trong 100 epoch
+- De bao cao cong bang, nen ghi ca `FINAL` va `BEST`
+
+## 10) File quan trong trong project
+
+- `main.py`: preprocess CSV
+- `scripts/build_text_features.py`: tao TF-IDF + FastText tu `tokenized_text`
+- `scripts/train_lstm_baseline.py`: train LSTM
+- `scripts/train_bilstm_phase2.py`: train BiLSTM
+- `scripts/smoke_test_preprocess.py`: smoke preprocess
+- `scripts/smoke_test_features.py`: smoke features
+- `scripts/smoke_test_lstm.py`: smoke LSTM
+- `scripts/smoke_test_bilstm.py`: smoke BiLSTM
+
+## 11) Loi thuong gap va cach xu ly
+
+- Loi `Missing required input_ids...`: ban dang dua file chua co `input_ids` vao script train.
+- Train ra `sequence_mode` khong phai `input_ids`: can kiem tra lai file dau vao, hien tai script da khoa input_ids-only.
+- FastText train lau/ton RAM: giam `--ft-vector-size`, tang `--ft-min-count`, hoac giam kich thuoc tap train.
+- Sai duong dan: luon chay lenh tai root `Fake-News-Detection`.
