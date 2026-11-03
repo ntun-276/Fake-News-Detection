@@ -1,0 +1,79 @@
+# Cấu hình trung tâm của dự án - các giá trị lấy theo đề cương (Chương 2)
+
+seed: 42
+
+paths:
+  raw_dir: data/raw
+  interim_dir: data/interim
+  processed_dir: data/processed
+  features_dir: data/features
+  artifacts_dir: artifacts
+  reports_dir: reports
+  abbreviation_file: resources/vietnamese_abbreviation_normalization.csv
+  stopwords_file: resources/vietnamese_stopwords.txt
+
+dataset:
+  kaggle_slug: goumanguyen/vietnamese-fake-news-dataset-pbl7
+  # presplit: dùng đúng chia sẵn của dataset (683 / 171 / 161 = 1015 bài); random: tự chia từ 1 file
+  split_mode: presplit
+  train_file: origin_data/train_data.csv
+  val_file: origin_data/val_data.csv
+  test_file: origin_data/fix_test_data.csv
+  raw_file: null            # chỉ dùng khi split_mode = random
+  text_column: Maintext     # nội dung bài viết
+  label_column: Label       # 0 = Real, 1 = Fake
+  tokenized_column: tokenized_text
+  test_size: 0.15
+  val_size: 0.15
+
+preprocess:
+  lowercase: true
+  remove_urls: true
+  remove_html: true
+  remove_special_chars: true
+  normalize_unicode: true   # NFC
+  expand_abbreviations: true
+  remove_stopwords: true
+  tokenizer: underthesea    # word_tokenize -> chính_phủ, công_bố, ...
+
+sequence:
+  max_seq_len: 1000         # ~p87 của số token (median 462, p90 1132); xem log của preprocess.py
+  min_word_freq: 1
+  pad_token: "<PAD>"
+  unk_token: "<UNK>"
+
+tfidf:
+  ngram_range: [1, 2]
+  min_df: 1                 # số nguyên (xem docs/notes_on_report.md về min_df/max_df = 1.0)
+  max_df: 1.0
+
+fasttext:
+  vector_size: 100
+  window: 5
+  min_count: 1
+  epochs: 10
+  workers: 2
+
+training:
+  epochs: 100
+  batch_size: 32
+  learning_rate: 0.01
+  dropout: 0.5
+  early_stopping_patience: 10   # bổ sung để tránh overfit khi chạy 100 epoch
+  weight_decay: 0.0
+
+models:
+  cnn:
+    kernel_sizes: [3, 4, 5]
+    num_filters: 100
+  lstm:
+    hidden_size: 128
+    num_layers: 1
+  bilstm:
+    hidden_size: 128
+    num_layers: 1
+  freeze_embedding: false
+
+baselines:
+  logistic_regression: {C: 1.0, max_iter: 1000}
+  linear_svm: {C: 1.0}

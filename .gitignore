@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environment
+venv/
+.venv/
+env/
+ENV/
+pytorch_venv/
+
+# IDE & Editor
+.idea/
+.vscode/
+.spyproject/
+*.iml
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs & Temporary Files
+*.log
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
+
+# Environment Variables & Secrets
+.env
+.env.*
+!.env.example
+
+# Kaggle API credentials
+kaggle.json
+.kaggle/
+
+# Model Checkpoints & Artifacts
+*.pt
+*.pth
+*.ckpt
+*.pkl
+*.joblib
+*.model
+
+# Binary Data & Model Artifacts
+*.npy
+*.npz
+*.vec
+*.bin
+
+# Build & Distribution
+build/
+dist/
+*.egg-info/

@@ -1,0 +1,26 @@
+# --- Dữ liệu & tính toán ---
+numpy>=1.26
+pandas>=2.1
+scipy>=1.11
+pyyaml>=6.0
+joblib>=1.3
+tqdm>=4.66
+
+# --- NLP tiếng Việt & biểu diễn văn bản ---
+underthesea>=6.8          # tách từ tiếng Việt (word_tokenize)
+gensim>=4.3               # FastText / Word2Vec
+scikit-learn>=1.4         # TF-IDF, metrics, train_test_split
+
+# --- Deep Learning (CNN / LSTM / BiLSTM) ---
+torch>=2.3
+
+# --- Trực quan hoá ---
+matplotlib>=3.8
+seaborn>=0.13
+
+# --- Tải dataset từ Kaggle ---
+kaggle>=1.6
+
+# --- Test & notebook ---
+pytest>=8.0
+jupyterlab>=4.0
